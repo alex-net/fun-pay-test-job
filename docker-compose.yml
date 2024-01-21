@@ -1,0 +1,15 @@
+name: funpay-test
+
+services:
+  php:
+    build:
+      dockerfile: php.dockerfile
+    volumes:
+      - ./:/app
+    tty: true
+    working_dir: /app
+  db:
+    image: mariadb
+    environment:
+      MARIADB_ROOT_PASSWORD: password
+      MARIADB_DATABASE: database
