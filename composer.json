@@ -1,0 +1,16 @@
+{
+    "require-dev": {
+        "phpunit/phpunit": "^10.5"
+    },
+    "autoload": {
+        "psr-4": {
+            "FpDbTest\\": ""
+        },
+        "files": [
+            "bootstrap.php"
+        ]
+    },
+    "require": {
+        "m1/env": "^2.2"
+    }
+}

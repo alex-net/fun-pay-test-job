@@ -3,55 +3,57 @@
 namespace FpDbTest;
 
 use Exception;
+use mysqli;
+use PHPUnit\Framework\TestCase;
 
-class DatabaseTest
+class DatabaseTest extends TestCase
 {
-    private DatabaseInterface $db;
+    protected $queryBuilder;
+    protected static $db;
 
-    public function __construct(DatabaseInterface $db)
+    public static function setUpBeforeClass(): void
     {
-        $this->db = $db;
+        static::$db = @new mysqli(getenv('dbServer'), getenv('db_user'), getenv('db_pass'), getenv('db_name'), getenv('db_port'));
     }
 
-    public function testBuildQuery(): void
+    public function setUp(): void
     {
-        $results = [];
+        $this->queryBuilder = new Database(static::$db);
+    }
 
-        $results[] = $this->db->buildQuery('SELECT name FROM users WHERE user_id = 1');
-
-        $results[] = $this->db->buildQuery(
-            'SELECT * FROM users WHERE name = ? AND block = 0',
-            ['Jack']
-        );
-
-        $results[] = $this->db->buildQuery(
-            'SELECT ?# FROM users WHERE user_id = ?d AND block = ?d',
-            [['name', 'email'], 2, true]
-        );
-
-        $results[] = $this->db->buildQuery(
-            'UPDATE users SET ?a WHERE user_id = -1',
-            [['name' => 'Jack', 'email' => null]]
-        );
-
-        foreach ([null, true] as $block) {
-            $results[] = $this->db->buildQuery(
-                'SELECT name FROM users WHERE ?# IN (?a){ AND block = ?d}',
-                ['user_id', [1, 2, 3], $block ?? $this->db->skip()]
-            );
-        }
-
-        $correct = [
-            'SELECT name FROM users WHERE user_id = 1',
-            'SELECT * FROM users WHERE name = \'Jack\' AND block = 0',
-            'SELECT `name`, `email` FROM users WHERE user_id = 2 AND block = 1',
-            'UPDATE users SET `name` = \'Jack\', `email` = NULL WHERE user_id = -1',
-            'SELECT name FROM users WHERE `user_id` IN (1, 2, 3)',
-            'SELECT name FROM users WHERE `user_id` IN (1, 2, 3) AND block = 1',
+    public static function queryProvider()
+    {
+        return [
+            ['SELECT name FROM users WHERE user_id = 1', [], 'SELECT name FROM users WHERE user_id = 1'],
+            ['SELECT * FROM users WHERE name = ? AND block = 0', ['Jack'], 'SELECT * FROM users WHERE name = \'Jack\' AND block = 0'],
+            ['SELECT ?# FROM users WHERE user_id = ?d AND block = ?d', [['name', 'email'], 2, true], 'SELECT `name`, `email` FROM users WHERE user_id = 2 AND block = 1'],
+            ['UPDATE users SET ?a WHERE user_id = -1', [['name' => 'Jack', 'email' => null]], 'UPDATE users SET `name` = \'Jack\', `email` = NULL WHERE user_id = -1',]
         ];
+    }
 
-        if ($results !== $correct) {
-            throw new Exception('Failure.');
-        }
+
+    /**
+     * @dataProvider queryProvider
+     */
+    public function testSimpleQuery($query, $params, $result)
+    {
+        $this->assertSame($this->queryBuilder->buildQuery($query, $params), $result);
+    }
+
+    public static function queryBlocksProvider()
+    {
+        return [
+            ['SELECT name FROM users WHERE ?# IN (?a){ AND block = ?d}', ['user_id', [1, 2, 3]], null, 'SELECT name FROM users WHERE `user_id` IN (1, 2, 3)'],
+            ['SELECT name FROM users WHERE ?# IN (?a){ AND block = ?d}', ['user_id', [1, 2, 3]], true, 'SELECT name FROM users WHERE `user_id` IN (1, 2, 3) AND block = 1'],
+        ];
+    }
+
+    /**
+     * @dataProvider queryBlocksProvider
+     */
+    public function testQueryBlocks($query, $params, $block, $result)
+    {
+        $params[] = $block ?? $this->queryBuilder->skip();
+        $this->assertSame($this->queryBuilder->buildQuery($query, $params), $result);
     }
 }
