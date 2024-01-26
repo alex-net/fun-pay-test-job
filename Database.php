@@ -7,6 +7,9 @@ use mysqli;
 
 class Database implements DatabaseInterface
 {
+    /**
+     * Объект соединения с базой даннных
+     */
     private mysqli $mysqli;
 
     public function __construct(mysqli $mysqli)
@@ -14,7 +17,15 @@ class Database implements DatabaseInterface
         $this->mysqli = $mysqli;
     }
 
-    private function paramReplacer($val, $argType)
+    /**
+     * метод рекурсивного прербразования найденных значений в нужный формат + возможное экранирование в случае строкового значения
+     *
+     * @param      mixed  $val       Значение параметра
+     * @param      string  $argType  Тип параметра определённый из строки формата или из типа самого параметра, если в строке формата не указан нужный тип (обозначение ?)
+     *
+     * @return     string  Подготовленное значение для вставки в строку запроса ..
+     */
+    private function paramReplacer(mixed $val, string $argType): string
     {
         if (in_array($argType, ['?d', '?f', 'integer', 'double'])) {
             return $val;
@@ -38,7 +49,7 @@ class Database implements DatabaseInterface
                 foreach ($val as $ind => $aVal) {
                     $vals[$ind] = $this->paramReplacer($aVal, $argType);
                 }
-                if (array_keys($vals) !== range(0, count($vals)-1)) {
+                if (array_keys($vals) !== range(0, count($vals) - 1)) {
                     foreach ($vals as $k => $v) {
                         $vals[$k] = "`$k` = $v";
                     }
@@ -50,6 +61,14 @@ class Database implements DatabaseInterface
         return '<>';
     }
 
+    /**
+     * Построитель запроса
+     *
+     * @param      string  $query  Строка формата
+     * @param      array   $args   аргументы запроса ..
+     *
+     * @return     string  Собранный запрос готовый к выполнению
+     */
     public function buildQuery(string $query, array $args = []): string
     {
         // Если подставлять нечего ... вернём исходный запрос
@@ -73,7 +92,12 @@ class Database implements DatabaseInterface
         // throw new Exception();
     }
 
-    public function skip()
+    /**
+     * возвращаем конструкцию, позволяющую пропустить условный блок
+     *
+     * @return     string  Конструкция, наличие которой в условном блоке строки запроса говорит о том, что блок должен быть пропущен
+     */
+    public function skip(): string
     {
         return '>!<';
         // throw new Exception();
