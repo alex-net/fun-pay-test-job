@@ -51,8 +51,6 @@ class DatabaseTest
         ];
 
         if ($results !== $correct) {
-            print_r($results);
-            print_r($correct);
             throw new Exception('Failure.');
         }
     }
